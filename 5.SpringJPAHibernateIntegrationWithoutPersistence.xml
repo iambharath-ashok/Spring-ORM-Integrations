@@ -1,0 +1,420 @@
+#	Spring JPA Hibernate Integration End-to-end application with out persistence.xml
+
+-	Set up database and tables
+-	Create a Dynamic web application and convert it to maven web application or create spring-mvc application from STS
+-	Add all the required spring and hibenrate related compatible dependencies
+-	Create and Dao and Service classes
+-	Create spring-config.xml file to define the beans
+-	Create Controller classes and inject service layer beans
+-	Add view related spring config beans to spring-config.xml
+-	Create views and place under /WEB-INF folder
+
+
+
+## Setup database and tables
+
+			CREATE TABLE EMPLOYEE
+			(
+				ID INT PRIMARY KEY AUTO_INCREMENT,
+				FIRSTNAME VARCHAR(30),
+				LASTNAME VARCHAR(30),
+				TELEPHONE VARCHAR(15),
+				EMAIL VARCHAR(30),
+				CREATED TIMESTAMP DEFAULT NOW()
+			);
+
+##	 Create maven eclipse dynamic web project	
+
+-	Create a dynamic web application and convert it to maven application
+
+##	Add the required dependencies
+
+-	Spring-tx
+-	Spring-orm
+- 	spring-context
+-	spring-web
+-	spring-webmvc
+-	hibernate-core
+-	hibernate-entitymanager
+
+## Define JPA domain class
+
+
+
+
+##	Create Dao and its Impl classes 
+
+-	Interface:
+
+		public interface EmployeeDao {
+			
+			
+			public void addEmployee(Employee employee);
+			
+			public Employee findEmployeeById(int employeeId);	
+			
+			public List<Employee> findAll();
+			
+			public int deleteEmployee(Integer employeeId);
+		
+		
+		}
+
+
+
+-	Impl classes
+
+		
+		@Repository
+		public class EmployeeDaoImpl implements EmployeeDao {
+			
+			
+			@PersistenceContext
+			public EntityManager entityManager;
+			
+			@Override
+			public void addEmployee(Employee employee) {
+					entityManager.persist(employee);
+			}
+			
+			
+			public Employee findEmployeeById(Integer id) {
+				Employee employee = entityManager.find(Employee.class, id);
+				return employee;
+			}
+			
+			
+			public int deleteEmployee(Employee employee) {
+				entityManager.remove(employee);
+			}
+			
+		}
+		
+		
+## Service Layer Class
+
+
+			public interface EmployeeManager {
+				public void addEmployee(EmployeeEntity employee);
+				public List<EmployeeEntity> getAllEmployees();
+				public void deleteEmployee(Integer employeeId);
+			}
+			
+			
+			@Service
+			public class EmployeeManagerImpl implements EmployeeManager
+			{
+				@Autowired
+				private EmployeeDAO employeeDAO;
+				@Override
+				@Transactional
+				public void addEmployee(EmployeeEntity employee) {
+					employeeDAO.addEmployee(employee);
+				}
+				@Override
+				@Transactional
+				public List<EmployeeEntity> getAllEmployees() {
+					return employeeDAO.getAllEmployees();
+				}
+				
+				@Override
+				@Transactional
+				public void deleteEmployee(Integer employeeId) {
+					employeeDAO.deleteEmployee(employeeId);
+				}
+				
+				@Override
+				@Transactional
+				public void deleteEmployee(Integer employeeId) {
+					employeeDAO.deleteEmployee(employeeId);
+				}
+				
+				public void setEmployeeDAO(EmployeeDAO employeeDAO) {
+					this.employeeDAO = employeeDAO;
+				}
+			}
+
+
+##	spring-config.xml
+
+
+				<beans xmlns="http://www.springframework.org/schema/beans"
+					xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+					xmlns:tx="http://www.springframework.org/schema/tx" xmlns:mvc="http://www.springframework.org/schema/mvc"
+					xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+					http://www.springframework.org/schema/context/ http://www.springframework.org/schema/context/spring-context-3.0.xsd
+					http://www.springframework.org/schema/tx/ http://www.springframework.org/schema/tx/spring-tx-3.2.xsd
+					http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd">
+				
+					<tx:annotation-driven/>
+					<context:component-scan base-packages="com.guru.bharath.jpa"/>
+					<context:annotation-config/>
+					
+					<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+						<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+						<property name="url" value="jdbc:mysql://localhost:3306/test" />
+						<property name="username" value="root" />
+						<property name="password" value="password" />
+					</bean>
+					
+					<bean id="entityManagerFactoryBean"  class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+     
+						<property name="dataSource" ref="dataSource" />
+				 
+						<property name="persistenceUnitName" value="demoJPAUnit" />
+						 
+						<property name="packagesToScan">
+							<list>
+								<value>com.howtodoinjava.jpa.demo.entity</value>
+							</list>
+						</property>
+				 
+						<property name="jpaVendorAdapter">
+							<bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter" />
+						</property>
+						 
+						<property name="jpaProperties">
+							<props>
+								<prop key="hibernate.archive.autodetection">class,hbm</prop>
+								<prop key="hibernate.hbm2ddl.auto">create</prop>
+								<prop key="hibernate.show_sql">true</prop>
+								<prop key="hibernate.dialect">org.hibernate.dialect.HSQLDialect</prop>
+							</props>
+						</property>
+					</bean>
+					
+					 <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+						<property name="entityManagerFactory" ref="entityManagerFactoryBean" />
+					</bean>
+				
+				
+			</beans>
+
+
+
+##	Define Controller Classes
+
+
+		@Controller
+		public class EmployeeController {
+			
+			@Autowired
+			private EmployeeManager employeeManager;
+			@RequestMapping(value = "/", method = RequestMethod.GET)
+			public String listEmployees(ModelMap map)
+			{
+				map.addAttribute("employee", new EmployeeEntity());
+				map.addAttribute("employeeList", employeeManager.getAllEmployees());
+				return "editEmployeeList";
+			}
+			@RequestMapping(value = "/add", method = RequestMethod.POST)
+			public String addEmployee(@ModelAttribute(value="employee") EmployeeEntity employee, BindingResult result)
+			{
+				employeeManager.addEmployee(employee);
+				return "redirect:/";
+			}
+			@RequestMapping("/delete/{employeeId}")
+			public String deleteEmplyee(@PathVariable("employeeId") Integer employeeId)
+			{
+				employeeManager.deleteEmployee(employeeId);
+				return "redirect:/";
+			}
+			public void setEmployeeManager(EmployeeManager employeeManager) {
+				this.employeeManager = employeeManager;
+			}
+		
+		
+		}
+		
+		
+##	Create views with JSP
+
+
+-	editEmployeeList.jsp
+
+
+				<%@taglib uri="http://www.springframework.org/tags" prefix="spring"%>
+				<%@taglib uri="http://www.springframework.org/tags/form" prefix="form"%>
+				<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+				<html>
+					<head>
+						<title>Spring 3 hibernate integration example on www.howtodoinjava.com</title>
+					</head>
+					<body>
+					<h2>Employee Management Screen : Spring 3 hibernate integration example on www.howtodoinjava.com</h2>
+					<form:form method="post" action="add" commandName="employee">
+						<table>
+						<tr>
+							<td><form:label path="firstname"><spring:message code="label.firstname"/></form:label></td>
+							<td><form:input path="firstname" /></td>
+						</tr>
+						<tr>
+							<td><form:label path="lastname"><spring:message code="label.lastname"/></form:label></td>
+							<td><form:input path="lastname" /></td>
+						</tr>
+						<tr>
+							<td><form:label path="email"><spring:message code="label.email"/></form:label></td>
+							<td><form:input path="email" /></td>
+						</tr>
+						<tr>
+							<td><form:label path="telephone"><spring:message code="label.telephone"/></form:label></td>
+							<td><form:input path="telephone" /></td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<input type="submit" value="<spring:message code="label.add"/>"/>
+							</td>
+						</tr>
+					</table>
+					</form:form>
+					<h3>Employees</h3>
+					<c:if  test="${!empty employeeList}">
+					<table class="data">
+					<tr>
+						<th>Name</th>
+						<th>Email</th>
+						<th>Telephone</th>
+						<th>Action</th>
+					</tr>
+					<c:forEach items="${employeeList}" var="emp">
+						<tr>
+							<td>${emp.lastname}, ${emp.firstname} </td>
+							<td>${emp.email}</td>
+							<td>${emp.telephone}</td>
+							<td>delete</td>
+						</tr>
+					</c:forEach>
+					</table>
+					</c:if>
+					</body>
+				</html>
+				
+				
+##	Configure Spring dispatcher servlet in web.xml
+
+
+-	web.xml
+
+			
+			<?xml version="1.0" encoding="UTF-8"?>
+ 
+			<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				xmlns="http://java.sun.com/xml/ns/javaee"
+				xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+				xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+				id="WebApp_ID" version="2.5">
+			 
+			<display-name>Archetype Created Web Application</display-name>
+				<welcome-file-list>
+					<welcome-file>/WEB-INF/index.jsp</welcome-file>
+				</welcome-file-list>
+				<servlet>
+					<servlet-name>employee</servlet-name>
+					<servlet-class>
+						org.springframework.web.servlet.DispatcherServlet
+					</servlet-class>
+					<load-on-startup>1</load-on-startup>
+				</servlet>
+				<servlet-mapping>
+					<servlet-name>employee</servlet-name>
+					<url-pattern>/</url-pattern>
+				</servlet-mapping>
+				<context-param>
+					<param-name>contextConfigLocation</param-name>
+					<param-value>/WEB-INF/employee-servlet.xml</param-value>
+				</context-param>
+				<listener>
+					<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+				</listener>
+			</web-app>
+			
+			
+			
+##	View Related bean in spring-config.xml
+
+			 <bean id="jspViewResolver"
+				class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+				<property name="viewClass"
+					value="org.springframework.web.servlet.view.JstlView"></property>
+				<property name="prefix" value="/WEB-INF/view/"></property>
+				<property name="suffix" value=".jsp"></property>
+			</bean>
+			<bean id="messageSource"
+				class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+				<property name="basename" value="classpath:messages"></property>
+				<property name="defaultEncoding" value="UTF-8"></property>
+			</bean>
+			
+			
+##	hibernate 4 and spring 3 configuration with xml (SessionFactory Examples)
+
+
+				<?xml  version="1.0" encoding="UTF-8"?>
+					<beans xmlns="http://www.springframework.org/schema/beans"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+						xmlns:aop="http://www.springframework.org/schema/aop"
+						xmlns:context="http://www.springframework.org/schema/context"
+						xmlns:jee="http://www.springframework.org/schema/jee"
+						xmlns:lang="http://www.springframework.org/schema/lang"
+						xmlns:p="http://www.springframework.org/schema/p"
+						xmlns:tx="http://www.springframework.org/schema/tx"
+						xmlns:util="http://www.springframework.org/schema/util"
+						xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+							http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+							http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+							http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee.xsd
+							http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang.xsd
+							http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+							http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+					  
+						<context:annotation-config />
+						<context:component-scan base-package="com.guru.bharath.hibernate.demo" />
+					  
+						<bean id="jspViewResolver"
+							class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+							<property name="viewClass"
+								value="org.springframework.web.servlet.view.JstlView" />
+							<property name="prefix" value="/WEB-INF/view/" />
+							<property name="suffix" value=".jsp" />
+						</bean>
+					  
+						<bean id="messageSource"
+							class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+							<property name="basename" value="classpath:messages" />
+							<property name="defaultEncoding" value="UTF-8" />
+						</bean>
+						<bean id="propertyConfigurer"
+							class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+							p:location="/WEB-INF/jdbc.properties" />
+					  
+						<bean id="dataSource"
+							class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close"
+							p:driverClassName="${jdbc.driverClassName}"
+							p:url="${jdbc.databaseurl}" p:username="${jdbc.username}"
+							p:password="${jdbc.password}" />
+					  
+					  
+						<bean id="sessionFactory"
+							class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+							<property name="dataSource" ref="dataSource" />
+							<property name="configLocation">
+								<value>classpath:hibernate.cfg.xml</value>
+							</property>
+							<property name="hibernateProperties">
+								<props>
+									<prop key="hibernate.dialect">${jdbc.dialect}</prop>
+									<prop key="hibernate.show_sql">true</prop>
+								</props>
+							</property>
+						</bean>
+						 
+						<bean id="employeeDAO" class="com.howtodoinjava.dao.EmployeeDaoImpl"></bean>
+						<bean id="employeeManager" class="com.howtodoinjava.service.EmployeeManagerImpl"></bean>
+					  
+						<tx:annotation-driven transaction-manager="transactionManager"/>
+						<bean id="transactionManager"
+							class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+							<property name="sessionFactory" ref="sessionFactory" />
+						</bean>
+						 
+					</beans>
